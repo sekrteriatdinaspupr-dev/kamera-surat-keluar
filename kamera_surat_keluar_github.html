@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Kamera Surat Keluar — Sistem Persuratan Digital</title>
+<title>Kamera Surat — Sistem Monitoring Persuratan Digital</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:system-ui,sans-serif;background:#000;color:#fff;overflow:hidden;-webkit-user-select:none;user-select:none}
@@ -121,12 +121,12 @@ html,body{height:100%;font-family:system-ui,sans-serif;background:#000;color:#ff
 <!-- Overlays -->
 <div class="ov" id="ov-send">
   <div class="sp"></div>
-  <p id="send-msg">Menambahkan foto ke form buat surat keluar...</p>
+  <p id="send-msg">Menambahkan foto ke form surat...</p>
 </div>
 <div class="ov" id="ov-ok">
   <div class="ov-ico">✅</div>
   <h2 id="ok-title">Foto Ditambahkan!</h2>
-  <p id="ok-desc">Foto berhasil masuk ke form buat surat keluar. Tab ini akan tertutup otomatis.</p>
+  <p id="ok-desc">Foto berhasil masuk ke form surat. Tab ini akan tertutup otomatis.</p>
   <button class="cls" onclick="window.close()">Tutup Tab Ini</button>
 </div>
 
@@ -139,7 +139,7 @@ html,body{height:100%;font-family:system-ui,sans-serif;background:#000;color:#ff
 <!-- Screen: start -->
 <div class="scr hidden" id="scr-start">
   <div class="scr-ico">📷</div>
-  <h2>Kamera Surat Keluar</h2>
+  <h2 id="start-title">Kamera Surat</h2>
   <p id="start-desc">Tekan tombol di bawah untuk mengaktifkan kamera. Kamu bisa mengambil foto surat sebanyak yang diperlukan.</p>
   <button class="go" id="btn-go" onclick="startCam()">
     <span>Aktifkan Kamera</span>
@@ -164,8 +164,8 @@ html,body{height:100%;font-family:system-ui,sans-serif;background:#000;color:#ff
     <div class="hdr-info">
       <div class="hdr-dot" id="hdr-dot" style="display:none"></div>
       <div>
-        <div class="hdr-title">📷 Kamera Surat Keluar</div>
-        <div class="hdr-sub">Sistem Persuratan Digital</div>
+        <div class="hdr-title" id="hdr-title-text">📷 Kamera Surat</div>
+        <div class="hdr-sub">Sistem Monitoring Persuratan Digital</div>
       </div>
     </div>
     <button class="btn-x" onclick="doClose()">✕</button>
@@ -239,8 +239,11 @@ html,body{height:100%;font-family:system-ui,sans-serif;background:#000;color:#ff
 </div>
 
 <script>
-const QP    = new URLSearchParams(location.search);
-const TOKEN = QP.get('token') || '';
+const QP     = new URLSearchParams(location.search);
+const TOKEN  = QP.get('token') || '';
+const TARGET = (QP.get('target') || 'surat_keluar').toLowerCase();
+const TARGET_LABEL = TARGET === 'surat_masuk' ? 'Surat Masuk' : 'Surat Keluar';
+const TARGET_POST_TYPE = TARGET === 'surat_masuk' ? 'CAMERA_SURAT_MASUK_PHOTOS' : 'CAMERA_SURAT_KELUAR_PHOTOS';
 
 let stream    = null;
 let facing    = 'environment';
@@ -250,10 +253,14 @@ let multiCam  = false;
 
 // ── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  document.title = 'Kamera ' + TARGET_LABEL + ' — Sistem Monitoring Persuratan Digital';
+  setText('start-title', 'Kamera ' + TARGET_LABEL);
+  setText('hdr-title-text', '📷 Kamera ' + TARGET_LABEL);
+
   if(!TOKEN){
     document.getElementById('scr-start').classList.remove('hidden');
     document.getElementById('start-desc').textContent =
-      '⚠️ Halaman ini harus dibuka dari tombol "Foto Surat" di aplikasi Sistem Persuratan Digital, bukan langsung dari URL.';
+      '⚠️ Halaman ini harus dibuka dari tombol "Foto Surat" di aplikasi Sistem Monitoring Persuratan Digital, bukan langsung dari URL.';
     document.getElementById('btn-go').style.display = 'none';
     return;
   }
@@ -410,10 +417,10 @@ async function sendAll(){
   const ov  = document.getElementById('ov-send');
   const msg = document.getElementById('send-msg');
   ov.classList.add('on');
-  msg.textContent = `Mengirim ${captured.length} foto ke form buat surat keluar...`;
+  msg.textContent = `Mengirim ${captured.length} foto ke form ${TARGET_LABEL.toLowerCase()}...`;
 
   const photos = captured.map((p, i) => ({
-    name:     `foto_surat_keluar_${String(i+1).padStart(2,'0')}.jpg`,
+    name:     `${TARGET === 'surat_masuk' ? 'foto_surat_masuk' : 'foto_surat_keluar'}_${String(i+1).padStart(2,'0')}.jpg`,
     mimeType: 'image/jpeg',
     dataUrl:  p.dataUrl,
     index:    i,
@@ -421,9 +428,9 @@ async function sendAll(){
   }));
 
   target.postMessage({
-    type:   'CAMERA_SURAT_KELUAR_PHOTOS',
+    type:   TARGET_POST_TYPE,
     token:  TOKEN,
-    target: 'surat_keluar',
+    target: TARGET,
     photos: photos,
     total:  photos.length
   }, '*');
@@ -434,7 +441,7 @@ async function sendAll(){
   document.getElementById('ok-title').textContent =
     captured.length===1 ? 'Foto Ditambahkan!' : captured.length+' Foto Ditambahkan!';
   document.getElementById('ok-desc').textContent =
-    'Foto berhasil masuk ke form buat surat keluar. Tab ini akan tertutup otomatis.';
+    'Foto berhasil masuk ke form ' + TARGET_LABEL.toLowerCase() + '. Tab ini akan tertutup otomatis.';
   document.getElementById('ov-ok').classList.add('on');
 
   setTimeout(()=>{ try{ window.close(); }catch(_){} }, 2500);
@@ -462,6 +469,7 @@ function showBanner(msg){
   b._t=setTimeout(()=>b.style.opacity='0',2500);
 }
 
+function setText(id, text){ const el=document.getElementById(id); if(el) el.textContent=text; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 </script>
 </body>
